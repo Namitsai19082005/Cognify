@@ -1,0 +1,27 @@
+{
+  "name": "text-to-learn",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "dev:client": "npm run dev --workspace=@text-to-learn/client",
+    "dev:server": "npm run dev --workspace=@text-to-learn/server",
+    "lint": "eslint .",
+    "test": "node --test",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^16.0.0"
+  }
+}
+
