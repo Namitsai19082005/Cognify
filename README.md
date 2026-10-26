@@ -26,9 +26,9 @@ Open the Vite URL printed in the client terminal. The client checks the API at `
 
 Copy `.env.example` to an ignored local `.env` file when adding database or AI credentials. Never commit `.env` or paste secret values into coding-agent prompts.
 
-## Course API (Day 2)
+## Course API
 
-The API validates course requests and persists outlines in MongoDB. The current course provider returns a deterministic fixture; Gemini generation is added in the next milestone.
+The API validates course requests, asks Gemini for a structured outline, validates the result with the shared schema, and stores valid courses in MongoDB. Gemini and MongoDB credentials stay on the server.
 
 ```http
 GET  /api/health/live
@@ -37,7 +37,11 @@ POST /api/courses
 GET  /api/courses/:courseId
 ```
 
-Create a course with `{"topic":"Zero Trust network security","level":"beginner"}`. `level` is optional and defaults to `beginner`; accepted levels are `beginner`, `intermediate`, and `advanced`. Outlines contain exactly three modules with three lessons each. Set `MONGODB_URI` in the root `.env` file to enable course persistence. The readiness endpoint returns `503` while MongoDB is disconnected; liveness remains available so the API can still be diagnosed.
+Create a course with `{"topic":"Zero Trust network security","level":"beginner"}`. `level` is optional and defaults to `beginner`; accepted levels are `beginner`, `intermediate`, and `advanced`. Outlines contain exactly three modules with three lessons each. Each lesson includes objectives, key topics, and plain-text resource suggestions.
+
+Set `GEMINI_API_KEY` and `MONGODB_URI` in the root `.env` file. `GEMINI_MODEL` defaults to `gemini-3.8-flash`. The API makes one bounded repair request if Gemini returns malformed JSON or an outline that fails schema validation, and saves nothing unless the final outline is valid. The readiness endpoint returns `503` while MongoDB is disconnected; liveness remains available so the API can still be diagnosed.
+
+Invalid input returns `400`; unavailable MongoDB or missing Gemini configuration returns `503`; provider failures and invalid model output return a safe `502` response. Provider response bodies and credentials are not returned to the client.
 
 ## Workspace layout
 
