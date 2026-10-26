@@ -26,6 +26,19 @@ Open the Vite URL printed in the client terminal. The client checks the API at `
 
 Copy `.env.example` to an ignored local `.env` file when adding database or AI credentials. Never commit `.env` or paste secret values into coding-agent prompts.
 
+## Course API (Day 2)
+
+The API validates course requests and persists outlines in MongoDB. The current course provider returns a deterministic fixture; Gemini generation is added in the next milestone.
+
+```http
+GET  /api/health/live
+GET  /api/health/ready
+POST /api/courses
+GET  /api/courses/:courseId
+```
+
+Create a course with `{"topic":"Zero Trust network security","level":"beginner"}`. `level` is optional and defaults to `beginner`; accepted levels are `beginner`, `intermediate`, and `advanced`. Outlines contain exactly three modules with three lessons each. Set `MONGODB_URI` in the root `.env` file to enable course persistence. The readiness endpoint returns `503` while MongoDB is disconnected; liveness remains available so the API can still be diagnosed.
+
 ## Workspace layout
 
 - `client/` — React and Vite application
