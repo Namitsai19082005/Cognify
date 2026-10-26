@@ -17,7 +17,7 @@ export const CourseCreateRequestSchema = z
   })
   .strict();
 
-const LessonOutlineSchema = z
+export const LessonOutlineSchema = z
   .object({
     title: LessonTitleSchema,
     objectives: z.array(LearningObjectiveSchema).min(2).max(4),
@@ -26,7 +26,7 @@ const LessonOutlineSchema = z
   })
   .strict();
 
-const ModuleOutlineSchema = z
+export const ModuleOutlineSchema = z
   .object({
     title: LessonTitleSchema,
     summary: z.string().trim().min(10).max(320),
@@ -45,8 +45,17 @@ export const CourseOutlineSchema = z
   })
   .strict();
 
+const CourseIdSchema = z.string().regex(/^[a-f\d]{24}$/i);
+const StoredLessonOutlineSchema = LessonOutlineSchema.extend({
+  id: CourseIdSchema,
+}).strict();
+const StoredModuleOutlineSchema = ModuleOutlineSchema.extend({
+  lessons: z.array(StoredLessonOutlineSchema).length(3),
+}).strict();
+
 export const CourseResponseSchema = CourseOutlineSchema.extend({
-  id: z.string().regex(/^[a-f\d]{24}$/i),
+  modules: z.array(StoredModuleOutlineSchema).length(3),
+  id: CourseIdSchema,
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 }).strict();
