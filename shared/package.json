@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.js"
+    ".": "./src/index.js",
+    "./course-schemas": "./src/course-schemas.js"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
   }
 }
-
