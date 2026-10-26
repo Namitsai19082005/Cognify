@@ -6,7 +6,10 @@ import {
 } from "@text-to-learn/shared";
 import { isDatabaseConnected } from "./database.js";
 import { Course, serializeCourse } from "./models/course.js";
-import { createCourseOutlineFixture } from "./services/course-outline-fixture.js";
+import {
+  CourseGenerationError,
+  generateCourseOutline,
+} from "./services/gemini-course-generator.js";
 
 const COURSE_ID_PATTERN = /^[a-f\d]{24}$/i;
 
@@ -19,7 +22,7 @@ function validationDetails(error) {
 
 export function createApp({
   courseModel = Course,
-  generateOutline = createCourseOutlineFixture,
+  generateOutline = generateCourseOutline,
 } = {}) {
   const app = express();
   app.use(express.json({ limit: "16kb" }));
@@ -61,7 +64,27 @@ export function createApp({
       const course = CourseResponseSchema.parse(serializeCourse(savedCourse));
 
       return response.status(201).json({ course });
-    } catch {
+    } catch (error) {
+      if (error instanceof CourseGenerationError) {
+        if (error.code === "not_configured") {
+          return response.status(503).json({
+            error: "Course generation is not configured on this server.",
+          });
+        }
+
+        if (error.code === "provider_failure") {
+          return response.status(502).json({
+            error: "Course generation is temporarily unavailable. Try again.",
+          });
+        }
+
+        if (error.code === "invalid_output") {
+          return response.status(502).json({
+            error: "A valid course could not be generated. Try a different topic.",
+          });
+        }
+      }
+
       return response.status(500).json({
         error: "The course could not be saved right now.",
       });
