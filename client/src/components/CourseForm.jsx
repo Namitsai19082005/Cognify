@@ -57,7 +57,7 @@ export default function CourseForm({ error, isGenerating, onSubmit }) {
             setTopic(event.target.value);
             setValidationError("");
           }}
-          aria-describedby="topic-hint topic-count"
+          aria-describedby={`topic-hint topic-count${validationError ? " topic-error" : ""}`}
           aria-invalid={Boolean(validationError)}
           disabled={isGenerating}
         />
@@ -83,7 +83,7 @@ export default function CourseForm({ error, isGenerating, onSubmit }) {
       </div>
 
       {validationError ? (
-        <p className="form-error" role="alert">{validationError}</p>
+        <p className="form-error" id="topic-error" role="alert">{validationError}</p>
       ) : null}
       {error ? <p className="form-error" role="alert">{error}</p> : null}
 

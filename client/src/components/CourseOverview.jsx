@@ -1,3 +1,5 @@
+import { createElement } from "react";
+
 function CourseLevel({ level }) {
   return <span className={`level-tag level-${level}`}>{level}</span>;
 }
@@ -53,7 +55,7 @@ export default function CourseOverview({ course, onCreateAnother }) {
       <section className="course-hero" aria-labelledby="course-title">
         <div className="course-hero-copy">
           <div className="course-tags">
-            <CourseLevel level={course.level} />
+            {createElement(CourseLevel, { level: course.level })}
             <span className="topic-tag">{course.topic}</span>
           </div>
           <h1 id="course-title">{course.title}</h1>
@@ -113,13 +115,11 @@ export default function CourseOverview({ course, onCreateAnother }) {
                 <span className="module-chevron" aria-hidden="true">⌄</span>
               </summary>
               <div className="module-lessons">
-                {module.lessons.map((lesson, lessonIndex) => (
-                  <LessonCard
-                    key={`${lesson.title}-${lessonIndex}`}
-                    lesson={lesson}
-                    lessonNumber={lessonIndex + 1}
-                  />
-                ))}
+                {module.lessons.map((lesson, lessonIndex) => createElement(LessonCard, {
+                  key: `${lesson.title}-${lessonIndex}`,
+                  lesson,
+                  lessonNumber: lessonIndex + 1,
+                }))}
               </div>
             </details>
           ))}

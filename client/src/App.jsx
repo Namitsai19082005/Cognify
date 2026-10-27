@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
 import CourseForm from "./components/CourseForm.jsx";
 import CourseOverview from "./components/CourseOverview.jsx";
 import {
@@ -90,6 +90,16 @@ export default function App() {
     }
   }
 
+  async function handleCheckService() {
+    setServiceStatus("checking");
+    try {
+      const ready = await checkCourseService();
+      setServiceStatus(ready ? "ready" : "unavailable");
+    } catch {
+      setServiceStatus("unavailable");
+    }
+  }
+
   function handleCreateAnother() {
     courseRequestRef.current?.abort();
     updateCourseAddress(null);
@@ -129,7 +139,7 @@ export default function App() {
             <p>Loading your saved course…</p>
           </section>
         ) : course ? (
-          <CourseOverview course={course} onCreateAnother={handleCreateAnother} />
+          createElement(CourseOverview, { course, onCreateAnother: handleCreateAnother })
         ) : (
           <section className="hero-layout" aria-labelledby="page-title">
             <div className="hero-copy">
@@ -150,19 +160,19 @@ export default function App() {
               </ul>
             </div>
 
-            <CourseForm
-              error={error}
-              isGenerating={isGenerating}
-              onSubmit={handleGenerateCourse}
-            />
+            {createElement(CourseForm, {
+              error,
+              isGenerating,
+              onSubmit: handleGenerateCourse,
+            })}
           </section>
         )}
 
         {serviceStatus === "unavailable" && !isLoadingCourse ? (
-          <p className="service-notice" role="status">
-            The course service is unavailable right now. You can still enter a
-            topic and retry when the API and database are ready.
-          </p>
+          <div className="service-notice" role="status">
+            <p>The course service is unavailable right now. Check again when the API and database are ready.</p>
+            <button className="service-retry" type="button" onClick={handleCheckService}>Check again</button>
+          </div>
         ) : null}
       </main>
 
