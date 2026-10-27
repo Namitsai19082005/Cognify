@@ -1,6 +1,6 @@
 # Text to Learn
 
-Text to Learn is a full-stack course generator project. The first milestone establishes the React client, Express API, shared package, and local development workflow. Course generation and persistence are planned for the next milestones.
+Text to Learn is a full-stack course generator that turns a learner's topic into a structured course outline. The React client connects to an Express API, which generates and validates the outline with Gemini before saving it to MongoDB.
 
 ## Prerequisites
 
@@ -42,6 +42,12 @@ Create a course with `{"topic":"Zero Trust network security","level":"beginner"}
 Set `GEMINI_API_KEY` and `MONGODB_URI` in the root `.env` file. `GEMINI_MODEL` defaults to `gemini-3.8-flash`. The API makes one bounded repair request if Gemini returns malformed JSON or an outline that fails schema validation, and saves nothing unless the final outline is valid. The readiness endpoint returns `503` while MongoDB is disconnected; liveness remains available so the API can still be diagnosed.
 
 Invalid input returns `400`; unavailable MongoDB or missing Gemini configuration returns `503`; provider failures and invalid model output return a safe `502` response. Provider response bodies and credentials are not returned to the client.
+
+## Browser workflow
+
+The home page checks `/api/health/ready`, accepts a topic and learner level, and submits the request to `POST /api/courses`. The course page displays the saved outline, learning goals, module summaries, lesson objectives, key topics, and resource suggestions. Each generated course is linked by its ID in the page query string, so reloading or sharing that URL retrieves it through `GET /api/courses/:courseId`.
+
+The browser validates requests and course responses with the same Zod schemas used by the API. Gemini and MongoDB credentials remain server-side. The current client supports creating and revisiting a course by its URL; it does not yet provide a user account or a cross-course library.
 
 ## Workspace layout
 
