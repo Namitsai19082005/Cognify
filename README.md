@@ -35,6 +35,7 @@ GET  /api/health/live
 GET  /api/health/ready
 POST /api/courses
 GET  /api/courses/:courseId
+POST /api/courses/:courseId/lessons/:lessonId/content
 ```
 
 Create a course with `{"topic":"Zero Trust network security","level":"beginner"}`. `level` is optional and defaults to `beginner`; accepted levels are `beginner`, `intermediate`, and `advanced`. Outlines contain exactly three modules with three lessons each. Each lesson includes objectives, key topics, and plain-text resource suggestions.
@@ -45,9 +46,9 @@ Invalid input returns `400`; unavailable MongoDB or missing Gemini configuration
 
 ## Browser workflow
 
-The home page checks `/api/health/ready`, accepts a topic and learner level, and submits the request to `POST /api/courses`. The course page displays the saved outline, learning goals, module summaries, lesson objectives, key topics, and resource suggestions. Each generated course is linked by its ID in the page query string, so reloading or sharing that URL retrieves it through `GET /api/courses/:courseId`.
+The home page checks `/api/health/ready`, accepts a topic and learner level, and submits the request to `POST /api/courses`. The course page displays the saved outline, learning goals, module summaries, lesson objectives, key topics, and resource suggestions. Select **Generate detailed lesson** on a lesson to create and save structured explanations, optional code examples, a video search query, and four interactive quiz questions. Generated content is cached with the lesson and returned by `GET /api/courses/:courseId`. Each course is linked by its ID in the page query string, so reloading or sharing that URL retrieves the saved outline and any generated lesson content.
 
-The browser validates requests and course responses with the same Zod schemas used by the API. Gemini and MongoDB credentials remain server-side. The current client supports creating and revisiting a course by its URL; it does not yet provide a user account or a cross-course library.
+The browser validates requests, course responses, and generated lesson responses with the same Zod schemas used by the API. Gemini and MongoDB credentials remain server-side. The current client supports creating and revisiting a course by its URL; it does not yet provide a user account or a cross-course library.
 
 ## Workspace layout
 
