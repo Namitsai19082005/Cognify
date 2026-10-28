@@ -215,6 +215,12 @@ export function createApp({
           }
         }
 
+      if (error?.name === "ZodError") {
+        return response.status(502).json({
+          error: "A valid lesson could not be generated. Try again.",
+        });
+      }
+
         return response.status(500).json({
           error: "The lesson could not be generated or saved right now.",
         });
