@@ -1,10 +1,18 @@
 import { createElement } from "react";
+import LessonContentRenderer from "./LessonContentRenderer.jsx";
 
 function CourseLevel({ level }) {
   return <span className={`level-tag level-${level}`}>{level}</span>;
 }
 
-function LessonCard({ lesson, lessonNumber }) {
+function LessonCard({
+  lesson,
+  lessonNumber,
+  onGenerateLesson,
+  isGenerating,
+  isLessonGenerationBusy,
+  error,
+}) {
   return (
     <article className="lesson-card">
       <div className="lesson-number" aria-label={`Lesson ${lessonNumber}`}>
@@ -32,12 +40,43 @@ function LessonCard({ lesson, lessonNumber }) {
             {lesson.resources.map((resource) => <li key={resource}>{resource}</li>)}
           </ul>
         </section>
+        {lesson.content?.length ? (
+          createElement(LessonContentRenderer, {
+            content: lesson.content,
+            lessonId: lesson.id,
+            generatedAt: lesson.contentGeneratedAt,
+          })
+        ) : (
+          <div className="lesson-generation-panel">
+            <div>
+              <strong>Go deeper with this lesson</strong>
+              <span>Generate an explanation, examples, and a quick knowledge check.</span>
+            </div>
+            <button
+              className="lesson-generate-button"
+              type="button"
+              disabled={isLessonGenerationBusy}
+              onClick={() => onGenerateLesson(lesson.id)}
+            >
+              {isGenerating ? "Building lesson…" : "Generate detailed lesson"}
+              {!isGenerating ? <span aria-hidden="true">↗</span> : null}
+            </button>
+            {error ? <p className="lesson-generation-error" role="alert">{error}</p> : null}
+          </div>
+        )}
       </div>
     </article>
   );
 }
 
-export default function CourseOverview({ course, onCreateAnother }) {
+export default function CourseOverview({
+  course,
+  onCreateAnother,
+  onGenerateLesson,
+  generatingLessonId,
+  isGeneratingLesson,
+  lessonError,
+}) {
   const lessonCount = course.modules.reduce(
     (total, module) => total + module.lessons.length,
     0,
@@ -119,6 +158,10 @@ export default function CourseOverview({ course, onCreateAnother }) {
                   key: `${lesson.title}-${lessonIndex}`,
                   lesson,
                   lessonNumber: lessonIndex + 1,
+                  onGenerateLesson,
+                  isGenerating: generatingLessonId === lesson.id,
+                  isLessonGenerationBusy: isGeneratingLesson,
+                  error: lessonError?.lessonId === lesson.id ? lessonError.error : "",
                 }))}
               </div>
             </details>

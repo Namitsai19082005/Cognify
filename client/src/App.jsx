@@ -4,6 +4,7 @@ import CourseOverview from "./components/CourseOverview.jsx";
 import {
   checkCourseService,
   createCourse,
+  generateLessonContent,
   getCourse,
 } from "./api/courses.js";
 
@@ -23,8 +24,14 @@ export default function App() {
   const [course, setCourse] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoadingCourse, setIsLoadingCourse] = useState(false);
+  const [lessonGeneration, setLessonGeneration] = useState({
+    lessonId: null,
+    isLoading: false,
+    error: "",
+  });
   const [error, setError] = useState("");
   const courseRequestRef = useRef(null);
+  const lessonRequestRef = useRef(null);
 
   useEffect(() => {
     const healthController = new AbortController();
@@ -37,11 +44,15 @@ export default function App() {
 
     function loadCourseFromLocation() {
       courseRequestRef.current?.abort();
+      lessonRequestRef.current?.abort();
+      lessonRequestRef.current = null;
+      setLessonGeneration({ lessonId: null, isLoading: false, error: "" });
       const courseId = new URLSearchParams(window.location.search).get("course");
 
       if (!courseId) {
         setCourse(null);
         setIsLoadingCourse(false);
+        setLessonGeneration({ lessonId: null, isLoading: false, error: "" });
         setError("");
         return;
       }
@@ -71,6 +82,7 @@ export default function App() {
     return () => {
       healthController.abort();
       courseRequestRef.current?.abort();
+      lessonRequestRef.current?.abort();
       window.removeEventListener("popstate", loadCourseFromLocation);
     };
   }, []);
@@ -81,12 +93,54 @@ export default function App() {
 
     try {
       const generatedCourse = await createCourse(input);
+      setLessonGeneration({ lessonId: null, isLoading: false, error: "" });
       setCourse(generatedCourse);
       updateCourseAddress(generatedCourse.id);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  async function handleGenerateLesson(lessonId) {
+    if (!course) return;
+
+    lessonRequestRef.current?.abort();
+    const controller = new AbortController();
+    lessonRequestRef.current = controller;
+    setLessonGeneration({ lessonId, isLoading: true, error: "" });
+    try {
+      const generatedLesson = await generateLessonContent(course.id, lessonId, {
+        signal: controller.signal,
+      });
+      setCourse((currentCourse) => {
+        if (!currentCourse) return currentCourse;
+
+        return {
+          ...currentCourse,
+          updatedAt: generatedLesson.generatedAt,
+          modules: currentCourse.modules.map((courseModule) => ({
+            ...courseModule,
+            lessons: courseModule.lessons.map((lesson) => (
+              lesson.id === generatedLesson.lessonId
+                ? {
+                    ...lesson,
+                    content: generatedLesson.content,
+                    contentGeneratedAt: generatedLesson.generatedAt,
+                  }
+                : lesson
+            )),
+          })),
+        };
+      });
+      setLessonGeneration({ lessonId: null, isLoading: false, error: "" });
+    } catch (requestError) {
+      if (!controller.signal.aborted) {
+        setLessonGeneration({ lessonId, isLoading: false, error: requestError.message });
+      }
+    } finally {
+      if (!controller.signal.aborted) lessonRequestRef.current = null;
     }
   }
 
@@ -102,8 +156,11 @@ export default function App() {
 
   function handleCreateAnother() {
     courseRequestRef.current?.abort();
+    lessonRequestRef.current?.abort();
+    lessonRequestRef.current = null;
     updateCourseAddress(null);
     setCourse(null);
+    setLessonGeneration({ lessonId: null, isLoading: false, error: "" });
     setError("");
   }
 
@@ -139,7 +196,14 @@ export default function App() {
             <p>Loading your saved course…</p>
           </section>
         ) : course ? (
-          createElement(CourseOverview, { course, onCreateAnother: handleCreateAnother })
+          createElement(CourseOverview, {
+            course,
+            onCreateAnother: handleCreateAnother,
+            onGenerateLesson: handleGenerateLesson,
+            generatingLessonId: lessonGeneration.isLoading ? lessonGeneration.lessonId : null,
+            isGeneratingLesson: lessonGeneration.isLoading,
+            lessonError: lessonGeneration.error ? lessonGeneration : null,
+          })
         ) : (
           <section className="hero-layout" aria-labelledby="page-title">
             <div className="hero-copy">

@@ -1,6 +1,7 @@
 import {
   CourseCreateRequestSchema,
   CourseResponseSchema,
+  LessonContentGenerationResponseSchema,
 } from "@text-to-learn/shared";
 
 async function requestJson(path, options = {}) {
@@ -51,4 +52,18 @@ export async function getCourse(courseId, { signal } = {}) {
   );
 
   return parseCourse(payload);
+}
+
+export async function generateLessonContent(courseId, lessonId, { signal } = {}) {
+  const payload = await requestJson(
+    `/api/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(lessonId)}/content`,
+    { method: "POST", signal },
+  );
+  const result = LessonContentGenerationResponseSchema.safeParse(payload.lesson);
+
+  if (!result.success) {
+    throw new Error("The API returned lesson content in an unexpected format.");
+  }
+
+  return result.data;
 }
