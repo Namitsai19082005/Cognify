@@ -3,6 +3,8 @@ import {
   CourseCreateRequestSchema,
   CourseOutlineSchema,
   CourseResponseSchema,
+  LessonContentGenerationResponseSchema,
+  LessonContentSchema,
 } from "@text-to-learn/shared";
 import { isDatabaseConnected } from "./database.js";
 import { Course, serializeCourse } from "./models/course.js";
@@ -10,6 +12,10 @@ import {
   CourseGenerationError,
   generateCourseOutline,
 } from "./services/gemini-course-generator.js";
+import {
+  LessonGenerationError,
+  generateLessonContent,
+} from "./services/gemini-lesson-generator.js";
 
 const COURSE_ID_PATTERN = /^[a-f\d]{24}$/i;
 
@@ -23,6 +29,7 @@ function validationDetails(error) {
 export function createApp({
   courseModel = Course,
   generateOutline = generateCourseOutline,
+  generateLesson = generateLessonContent,
 } = {}) {
   const app = express();
   app.use(express.json({ limit: "16kb" }));
@@ -117,6 +124,103 @@ export function createApp({
       });
     }
   });
+
+  app.post(
+    "/api/courses/:courseId/lessons/:lessonId/content",
+    async (request, response) => {
+      const { courseId, lessonId } = request.params;
+      if (!COURSE_ID_PATTERN.test(courseId) || !COURSE_ID_PATTERN.test(lessonId)) {
+        return response.status(400).json({ error: "Invalid course or lesson ID." });
+      }
+
+      if (!isDatabaseConnected()) {
+        return response.status(503).json({
+          error: "Course storage is unavailable. Configure MongoDB and try again.",
+        });
+      }
+
+      try {
+        const savedCourse = await courseModel.findById(courseId);
+        if (!savedCourse) {
+          return response.status(404).json({ error: "Course not found." });
+        }
+
+        let selectedModule;
+        let selectedLesson;
+        for (const courseModule of savedCourse.modules) {
+          const matchingLesson = courseModule.lessons.find(
+            (lesson) => String(lesson._id) === lessonId,
+          );
+          if (matchingLesson) {
+            selectedModule = courseModule;
+            selectedLesson = matchingLesson;
+            break;
+          }
+        }
+
+        if (!selectedLesson) {
+          return response.status(404).json({ error: "Lesson not found in this course." });
+        }
+
+        const cachedContent = LessonContentSchema.safeParse(selectedLesson.content);
+        if (cachedContent.success && selectedLesson.contentGeneratedAt) {
+          const cachedResponse = LessonContentGenerationResponseSchema.parse({
+            lessonId,
+            content: cachedContent.data,
+            generatedAt: selectedLesson.contentGeneratedAt.toISOString(),
+            cached: true,
+          });
+          return response.json({ lesson: cachedResponse });
+        }
+
+        const content = LessonContentSchema.parse(await generateLesson({
+          courseTitle: savedCourse.title,
+          topic: savedCourse.topic,
+          level: savedCourse.level,
+          moduleTitle: selectedModule.title,
+          moduleSummary: selectedModule.summary,
+          lessonTitle: selectedLesson.title,
+          objectives: selectedLesson.objectives,
+          keyTopics: selectedLesson.keyTopics,
+        }));
+        const generatedAt = new Date();
+        selectedLesson.set({ content, contentGeneratedAt: generatedAt });
+        await savedCourse.save();
+
+        const lesson = LessonContentGenerationResponseSchema.parse({
+          lessonId,
+          content,
+          generatedAt: generatedAt.toISOString(),
+          cached: false,
+        });
+        return response.status(201).json({ lesson });
+      } catch (error) {
+        if (error instanceof LessonGenerationError) {
+          if (error.code === "not_configured") {
+            return response.status(503).json({
+              error: "Lesson generation is not configured on this server.",
+            });
+          }
+
+          if (error.code === "provider_failure") {
+            return response.status(502).json({
+              error: "Lesson generation is temporarily unavailable. Try again.",
+            });
+          }
+
+          if (error.code === "invalid_output") {
+            return response.status(502).json({
+              error: "Valid lesson content could not be generated. Try again.",
+            });
+          }
+        }
+
+        return response.status(500).json({
+          error: "The lesson could not be generated or saved right now.",
+        });
+      }
+    },
+  );
 
   app.use((_request, response) => {
     response.status(404).json({ error: "Route not found." });
