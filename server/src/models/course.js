@@ -6,6 +6,8 @@ const lessonSchema = new mongoose.Schema(
     objectives: { type: [String], required: true },
     keyTopics: { type: [String], required: true },
     resources: { type: [String], required: true },
+    content: { type: [mongoose.Schema.Types.Mixed], default: undefined },
+    contentGeneratedAt: { type: Date, default: undefined },
   },
   { timestamps: false },
 );
@@ -47,10 +49,16 @@ export function serializeCourse(document) {
     modules: modules.map(({ title, summary, lessons }) => ({
       title,
       summary,
-      lessons: lessons.map(({ _id: lessonId, ...lesson }) => ({
+    lessons: lessons.map((lessonDocument) => {
+      const { _id: lessonId, contentGeneratedAt, ...lesson } = lessonDocument;
+      return {
         ...lesson,
         id: String(lessonId),
-      })),
+        ...(contentGeneratedAt
+          ? { contentGeneratedAt: contentGeneratedAt.toISOString() }
+          : {}),
+      };
+    }),
     })),
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt.toISOString(),

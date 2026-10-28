@@ -6,6 +6,7 @@ export const CourseLevelSchema = z.enum([
   "advanced",
 ]);
 
+const CourseIdSchema = z.string().regex(/^[a-f\d]{24}$/i);
 const CourseTextSchema = z.string().trim().min(3).max(160);
 const LearningObjectiveSchema = z.string().trim().min(3).max(180);
 const LessonTitleSchema = z.string().trim().min(3).max(120);
@@ -45,9 +46,57 @@ export const CourseOutlineSchema = z
   })
   .strict();
 
-const CourseIdSchema = z.string().regex(/^[a-f\d]{24}$/i);
+const LessonContentTextSchema = z.string().trim().min(3).max(1800);
+
+export const LessonContentBlockSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("heading"),
+    text: z.string().trim().min(3).max(120),
+  }).strict(),
+  z.object({
+    type: z.literal("paragraph"),
+    text: LessonContentTextSchema,
+  }).strict(),
+  z.object({
+    type: z.literal("code"),
+    language: z.string().trim().min(1).max(40),
+    text: z.string().min(1).max(3000),
+  }).strict(),
+  z.object({
+    type: z.literal("video"),
+    query: z.string().trim().min(3).max(180),
+  }).strict(),
+  z.object({
+    type: z.literal("mcq"),
+    question: z.string().trim().min(5).max(350),
+    options: z.array(z.string().trim().min(1).max(300)).length(4),
+    answerIndex: z.number().int().min(0).max(3),
+    explanation: z.string().trim().min(10).max(700),
+  }).strict(),
+]);
+
+export const LessonContentSchema = z
+  .array(LessonContentBlockSchema)
+  .min(9)
+  .max(18);
+
+export const LessonContentOutputSchema = z
+  .object({ content: LessonContentSchema })
+  .strict();
+
+export const LessonContentGenerationResponseSchema = z
+  .object({
+    lessonId: CourseIdSchema,
+    content: LessonContentSchema,
+    generatedAt: z.iso.datetime(),
+    cached: z.boolean(),
+  })
+  .strict();
+
 const StoredLessonOutlineSchema = LessonOutlineSchema.extend({
   id: CourseIdSchema,
+  content: LessonContentSchema.optional(),
+  contentGeneratedAt: z.iso.datetime().optional(),
 }).strict();
 const StoredModuleOutlineSchema = ModuleOutlineSchema.extend({
   lessons: z.array(StoredLessonOutlineSchema).length(3),

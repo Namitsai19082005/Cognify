@@ -5,5 +5,9 @@ export {
   CourseLevelSchema,
   CourseOutlineSchema,
   CourseResponseSchema,
+  LessonContentBlockSchema,
+  LessonContentGenerationResponseSchema,
+  LessonContentOutputSchema,
+  LessonContentSchema,
 } from "./course-schemas.js";
 
