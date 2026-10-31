@@ -14,7 +14,8 @@ concurrency:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    # MongoDB 8.0 fails to start on newer hosted runner kernels (rseq issue).
+    runs-on: ubuntu-22.04
     services:
       mongodb:
         image: mongo:8.0
