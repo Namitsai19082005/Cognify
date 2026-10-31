@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: text-to-learn-api
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm run start --workspace=@text-to-learn/server
+    healthCheckPath: /api/health/live
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: TRUST_PROXY_HOPS
+        value: "1"
+      - key: GENERATION_RATE_LIMIT_WINDOW_MS
+        value: "3600000"
+      - key: GENERATION_RATE_LIMIT_MAX
+        value: "10"
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: CLIENT_ORIGINS
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

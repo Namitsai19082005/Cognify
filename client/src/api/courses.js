@@ -4,8 +4,14 @@ import {
   LessonContentGenerationResponseSchema,
 } from "@text-to-learn/shared";
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL ?? "").trim().replace(/\/+$/, "");
+
+function apiUrl(path) {
+  return `${API_BASE_URL}${path}`;
+}
+
 async function requestJson(path, options = {}) {
-  const response = await fetch(path, options);
+  const response = await fetch(apiUrl(path), options);
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
