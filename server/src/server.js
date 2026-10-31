@@ -10,24 +10,28 @@ dotenv.config({ path: fileURLToPath(new URL("../../.env", import.meta.url)) });
 
 const port = Number(process.env.PORT) || 5000;
 
+function log(level, event, details = {}) {
+  const message = JSON.stringify({ level, event, ...details });
+  (level === "error" ? console.error : console.info)(message);
+}
+
 async function startServer() {
   try {
     const connected = await connectToDatabase();
-    if (connected) console.info("MongoDB connection established.");
-    else console.warn("MONGODB_URI is unset; course persistence is unavailable.");
+    if (connected) log("info", "database.connected");
+    else log("warn", "database.not_configured");
   } catch (error) {
-    console.error(
-      `MongoDB connection failed (${error.name}); course persistence is unavailable.`,
-    );
+    log("error", "database.connection_failed", { errorName: error.name });
   }
 
   const server = createApp().listen(port, "0.0.0.0", () => {
-    console.info(`Text to Learn API listening on port ${port}`);
+    log("info", "server.listening", { port });
   });
 
   const stop = () => {
     server.close(async () => {
       await disconnectFromDatabase();
+      log("info", "server.stopped");
       process.exitCode = 0;
     });
   };
