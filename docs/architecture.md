@@ -1,42 +1,56 @@
 # Architecture
 
-## Current foundation
+## Runtime topology
 
-The application is a single npm workspace repository:
-
-```text
-Browser
-  └─ React + Vite client
-       └─ /api requests through the Vite development proxy
-            └─ Express API
-                  ├─ shared Zod contracts
-                  ├─ Gemini structured-output adapter
-                  └─ Mongoose → MongoDB Atlas
+```mermaid
+flowchart LR
+  Learner --> Client[React + Vite on Vercel]
+  Client -->|VITE_API_URL in production; Vite proxy locally| API[Express API on Render]
+  API -->|Zod validation and safe errors| Shared[Shared contracts]
+  API -->|Structured prompts| Gemini[Gemini API]
+  API -->|Mongoose persistence| Mongo[(MongoDB Atlas)]
 ```
 
-The API exposes `GET /api/health/live` for process liveness and `GET /api/health/ready` for database readiness. The client checks readiness before showing the generation form's service status.
+The browser has no Gemini or MongoDB credentials. In local development, Vite proxies `/api` to `localhost:5000`. In a deployment, `VITE_API_URL` points the client to the Render API origin.
 
-## Planned course-generation flow
+## Request path
+
+The API applies Helmet headers, request IDs and structured request logs, and exact-origin CORS before its routes. JSON bodies are capped at 16 KB. Both generation endpoints share a per-IP rate limit. The server validates course input and model output with shared Zod contracts, then persists only valid output. Errors include a request ID and a safe message; logs omit prompts, request bodies, keys, and raw provider responses.
+
+The rate limiter uses process memory. That is suitable for the current single-instance demo but resets on restart and does not coordinate multiple API instances. Use a shared store before horizontal scaling. CORS controls which browser origins can read API responses; it does not provide authentication. Courses are public to anyone with a course ID because this demo has no accounts or ownership model.
+
+## Course-generation flow
 
 ```text
-Topic and level form
-  → shared Zod request validation in browser and API
-  → Gemini structured JSON outline
-  → shared Zod output validation (one bounded repair attempt)
+Topic and learner level
+  → shared request schema in the browser and API
+  → Gemini structured course outline
+  → shared response schema (one bounded repair attempt)
   → MongoDB persistence
-  → course and lesson outline views
-  → on-demand lesson content generation and persistence
-  → structured lesson renderer with interactive quizzes
-  → course link reloads through GET /api/courses/:courseId
+  → reloadable course outline and lesson list
+  → on-demand lesson content generation
+  → validated lesson blocks, quiz interaction, and MongoDB cache
 ```
 
-`POST /api/courses` accepts a topic and optional learner level. The browser validates with the shared request schema, and the server repeats validation before processing the untrusted topic. The server requests exactly three modules with three lessons each and persists only an outline that passes the shared response schema. If the first response fails JSON parsing or schema validation, the adapter makes one repair request and validates again; it does not save a second invalid response. `GET /api/courses/:courseId` validates the identifier before reading the stored course. The React client renders course objectives and the syllabus, and stores the selected course ID in the query string so a reload fetches the persisted course again. `POST /api/courses/:courseId/lessons/:lessonId/content` generates a lesson only on demand, validates its structured blocks, saves the blocks and timestamp to the selected embedded lesson, and reuses valid cached content on later requests. Gemini and MongoDB credentials remain on the server and are supplied through environment variables.
+`POST /api/courses` requests exactly three modules with three lessons each. Invalid input is rejected before calling Gemini. If Gemini returns malformed or schema-invalid data, the server makes one repair request and persists only a valid outline. `GET /api/courses/:courseId` validates the identifier before reading MongoDB.
 
-## Day 4 browser experience
+`POST /api/courses/:courseId/lessons/:lessonId/content` validates both IDs, loads the selected lesson, and generates details only on demand. Valid content and its timestamp are saved on the lesson; later requests return the cached content. Lesson output includes heading, paragraph, optional code, a video-search query, and four trailing multiple-choice questions.
 
-`client/src/api/courses.js` is the browser boundary for readiness checks, course creation, and course retrieval. It validates requests and API responses with the shared Zod contracts. The home page reports loading and service errors, while the course overview presents module accordions with each lesson's objectives, key topics, and plain-text resource suggestions. The layout is responsive and uses native form controls and `<details>` elements for keyboard-accessible interaction.
+## Health checks and errors
 
-## Day 5 lesson content
+- `GET /api/health/live` indicates that the Express process is serving requests.
+- `GET /api/health/ready` reports whether the MongoDB connection is ready.
+- Input and ID validation errors return `400`; unknown courses or lessons return `404`; quota exhaustion returns `429`; missing service configuration returns `503`; provider failures return safe `502` responses.
+- Every API response receives an `X-Request-Id`. JSON logs include the request ID, method, path, status, and duration without recording request data.
 
-The lesson generator uses Gemini structured output for heading, paragraph, code, video-query, and multiple-choice blocks. Zod validates every block, while server-side semantic checks require explanatory text, one video search query, and four MCQs at the end of the lesson. Invalid first output receives one bounded repair attempt; invalid content is never persisted. The client renders code as escaped text, leaves video queries as search suggestions for a later integration, and lets learners select an answer and view feedback for each MCQ.
+## CI and deployment
 
+GitHub Actions runs linting, Node's test runner, and client/server builds. Tests mock the Gemini adapter. A MongoDB service container exercises the real course and lesson persistence flow in CI.
+
+`render.yaml` configures the Node API service and its liveness endpoint. `vercel.json` builds the static client from the monorepo root. See [deployment setup](deployment.md), [acceptance checks](acceptance-checklist.md), and the [demo walkthrough](demo-script.md).
+
+## Workspace responsibilities
+
+- `client/` — React interface, Vite proxy, and client-side API/schema boundary
+- `server/` — Express routes, middleware, Gemini adapters, Mongoose model, and tests
+- `shared/` — request, course, and lesson schemas shared by browser and API

@@ -1,63 +1,60 @@
 # Text to Learn
 
-Text to Learn is a full-stack course generator that turns a learner's topic into a structured course outline. The React client connects to an Express API, which generates and validates the outline with Gemini before saving it to MongoDB.
-
-## Prerequisites
-
-- Node.js 24 LTS
-- npm 10 or later
-
-The repository pins Node 24 in `.nvmrc` and `.node-version`. The current development environment reports Node 20.15.1; switch to Node 24 before installing dependencies because the current Vite release requires a newer Node 20 or Node 22 runtime.
+Text to Learn turns a topic into a saved course outline and generates detailed lesson content on demand. The React client uses an Express API, Gemini structured output, shared Zod contracts, and MongoDB.
 
 ## Local setup
 
+Prerequisites: Node.js **24.22.1** and npm 10 or later.
+
 ```powershell
-npm install
+npm ci
+Copy-Item .env.example .env
 npm run dev:server
 ```
 
-In a second terminal, start the client:
+Start the client in a second terminal:
 
 ```powershell
 npm run dev:client
 ```
 
-Open the Vite URL printed in the client terminal. The client checks the API at `/api/health/live`; Vite proxies that request to the Express server on port 5000.
+Open the Vite URL printed in the client terminal. For a live app, set `GEMINI_API_KEY` and `MONGODB_URI` in the root `.env`. The root `.env` file is ignored by Git. Keep both values server-side and out of prompts, screenshots, and logs.
 
-Copy `.env.example` to an ignored local `.env` file when adding database or AI credentials. Never commit `.env` or paste secret values into coding-agent prompts.
+The client uses Vite's `/api` development proxy locally. The deployed client can use a separate API origin through `VITE_API_URL`; see [deployment setup](docs/deployment.md).
 
-## Course API
+## Application flow
 
-The API validates course requests, asks Gemini for a structured outline, validates the result with the shared schema, and stores valid courses in MongoDB. Gemini and MongoDB credentials stay on the server.
+1. Enter a topic and learner level.
+2. The API validates the request, asks Gemini for a structured outline, validates the result, and stores the course.
+3. Open any lesson to generate structured lesson content and four interactive quiz questions.
+4. Reload or share the course URL to retrieve the saved outline and generated lessons.
 
-```http
-GET  /api/health/live
-GET  /api/health/ready
-POST /api/courses
-GET  /api/courses/:courseId
-POST /api/courses/:courseId/lessons/:lessonId/content
-```
+Each course contains three modules with three lessons each. Lesson content is generated only when requested and cached in MongoDB for later visits.
 
-Create a course with `{"topic":"Zero Trust network security","level":"beginner"}`. `level` is optional and defaults to `beginner`; accepted levels are `beginner`, `intermediate`, and `advanced`. Outlines contain exactly three modules with three lessons each. Each lesson includes objectives, key topics, and plain-text resource suggestions.
+## API
 
-Set `GEMINI_API_KEY` and `MONGODB_URI` in the root `.env` file. `GEMINI_MODEL` defaults to `gemini-3.8-flash`. The API makes one bounded repair request if Gemini returns malformed JSON or an outline that fails schema validation, and saves nothing unless the final outline is valid. The readiness endpoint returns `503` while MongoDB is disconnected; liveness remains available so the API can still be diagnosed.
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/health/live` | Process liveness check |
+| `GET` | `/api/health/ready` | Database readiness check |
+| `POST` | `/api/courses` | Generate and save a course outline |
+| `GET` | `/api/courses/:courseId` | Load a saved course |
+| `POST` | `/api/courses/:courseId/lessons/:lessonId/content` | Generate or reuse lesson content |
 
-Invalid input returns `400`; unavailable MongoDB or missing Gemini configuration returns `503`; provider failures and invalid model output return a safe `502` response. Provider response bodies and credentials are not returned to the client.
+Create a course with `{"topic":"Zero Trust network security","level":"beginner"}`. `level` is optional and defaults to `beginner`; accepted values are `beginner`, `intermediate`, and `advanced`.
 
-## Browser workflow
+## Security and operations
 
-The home page checks `/api/health/ready`, accepts a topic and learner level, and submits the request to `POST /api/courses`. The course page displays the saved outline, learning goals, module summaries, lesson objectives, key topics, and resource suggestions. Select **Generate detailed lesson** on a lesson to create and save structured explanations, optional code examples, a video search query, and four interactive quiz questions. Generated content is cached with the lesson and returned by `GET /api/courses/:courseId`. Each course is linked by its ID in the page query string, so reloading or sharing that URL retrieves the saved outline and any generated lesson content.
+- Helmet sets standard HTTP security headers.
+- CORS allows only the exact origins listed in `CLIENT_ORIGINS` (or the compatible `CLIENT_ORIGIN` setting). Separate origins with commas and omit paths and trailing slashes.
+- Course and lesson generation share a limit of 10 requests per client IP per hour by default. Configure `GENERATION_RATE_LIMIT_MAX` and `GENERATION_RATE_LIMIT_WINDOW_MS` for a different limit.
+- `TRUST_PROXY_HOPS` defaults to `0`. The Render Blueprint sets it to `1` so rate limiting can use the client IP forwarded through Render's proxy.
+- JSON request bodies are limited to 16 KB. Request IDs are returned in `X-Request-Id` and included in JSON request/error logs. Logs omit prompts, request bodies, secrets, and raw provider responses.
+- The rate limiter uses a process-local store. It resets when the server restarts and is not shared across multiple instances; use a shared store before scaling horizontally.
+- CORS is a browser access policy, not API authentication. This demo has no accounts or private course ownership; anyone who has a course ID can read that course.
+- Missing configuration returns a safe service error. Provider output is validated before persistence, and provider details are not sent to the browser.
 
-The browser validates requests, course responses, and generated lesson responses with the same Zod schemas used by the API. Gemini and MongoDB credentials remain server-side. The current client supports creating and revisiting a course by its URL; it does not yet provide a user account or a cross-course library.
-
-## Workspace layout
-
-- `client/` — React and Vite application
-- `server/` — Express API
-- `shared/` — code and validation contracts shared between the client and API
-- `docs/` — architecture and development notes
-
-## Quality commands
+## Checks and CI
 
 ```powershell
 npm run lint
@@ -65,7 +62,19 @@ npm test
 npm run build
 ```
 
-## Git workflow
+GitHub Actions runs those checks for pushes and pull requests. Gemini is mocked in the tests; the MongoDB integration check runs against a disposable MongoDB service in CI. To run that integration check locally, set `MONGODB_TEST_URI` to a disposable test database before running `npm test`. Without it, the integration check is skipped and the security/API tests still run.
 
-Use a small feature branch for each change, open a pull request, and run the quality commands before merging to `main`. Review AI-generated changes before merging them.
+## Hosting
 
+The repository includes a Render Blueprint for the Express API and a Vercel configuration for the Vite client. Create the services after connecting the repository, then add the API and database secrets in the hosting dashboards. The Render health check uses `/api/health/live`; the React app uses `VITE_API_URL` to contact the API. Follow the step-by-step [deployment guide](docs/deployment.md).
+
+## Demo and acceptance
+
+Use the [demo walkthrough](docs/demo-script.md) to present the learner flow and the [acceptance checklist](docs/acceptance-checklist.md) before recording or sharing a live demo.
+
+## Workspace layout
+
+- `client/` — React and Vite application
+- `server/` — Express API, Gemini adapters, MongoDB model, and API tests
+- `shared/` — Zod contracts shared between the client and API
+- `docs/` — architecture, deployment, acceptance, and demo notes
