@@ -1,148 +1,71 @@
-import { createElement, useEffect, useRef, useState } from "react";
-import CourseForm from "./components/CourseForm.jsx";
-import CourseOverview from "./components/CourseOverview.jsx";
-import {
-  checkCourseService,
-  createCourse,
-  generateLessonContent,
-  getCourse,
-} from "./api/courses.js";
+import { createElement, useEffect, useState } from "react";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import AppShell from "./components/AppShell.jsx";
+import CourseRoute from "./pages/CourseRoute.jsx";
+import HomePage from "./pages/HomePage.jsx";
+import { checkCourseService } from "./api/courses.js";
 
-function updateCourseAddress(courseId) {
-  const url = new URL(window.location.href);
-  if (courseId) {
-    url.searchParams.set("course", courseId);
-  } else {
-    url.searchParams.delete("course");
+function HomeRoute() {
+  const location = useLocation();
+  const legacyCourseId = new URLSearchParams(location.search).get("course");
+
+  if (legacyCourseId) {
+    return createElement(Navigate, {
+      replace: true,
+      to: `/courses/${encodeURIComponent(legacyCourseId)}`,
+    });
   }
 
-  window.history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  return createElement(HomePage);
 }
 
-export default function App() {
+function CourseLibraryPlaceholder() {
+  return (
+    <section className="library-page" aria-labelledby="library-title">
+      <div className="page-eyebrow">YOUR LEARNING SPACE</div>
+      <h1 id="library-title">Course library</h1>
+      <p className="library-intro">
+        Your saved courses will be collected here. Create a course to get started.
+      </p>
+      {createElement(
+        Link,
+        { className: "primary-button library-create-link", to: "/" },
+        "Create a course ",
+        <span aria-hidden="true">→</span>,
+      )}
+    </section>
+  );
+}
+
+function NotFoundPage() {
+  return (
+    <section className="route-message" aria-labelledby="not-found-title">
+      <div className="page-eyebrow">PAGE NOT FOUND</div>
+      <h1 id="not-found-title">That page isn’t here.</h1>
+      <p>Use the course library or start a new course to continue.</p>
+      {createElement(Link, {
+        className: "primary-button route-action",
+        to: "/",
+        children: "Go to course creation",
+      })}
+    </section>
+  );
+}
+
+function RoutedApplication() {
   const [serviceStatus, setServiceStatus] = useState("checking");
-  const [course, setCourse] = useState(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isLoadingCourse, setIsLoadingCourse] = useState(false);
-  const [lessonGeneration, setLessonGeneration] = useState({
-    lessonId: null,
-    isLoading: false,
-    error: "",
-  });
-  const [error, setError] = useState("");
-  const courseRequestRef = useRef(null);
-  const lessonRequestRef = useRef(null);
 
   useEffect(() => {
-    const healthController = new AbortController();
-
-    checkCourseService({ signal: healthController.signal })
-      .then((ready) => setServiceStatus(ready ? "ready" : "unavailable"))
-      .catch((requestError) => {
-        if (requestError.name !== "AbortError") setServiceStatus("unavailable");
-      });
-
-    function loadCourseFromLocation() {
-      courseRequestRef.current?.abort();
-      lessonRequestRef.current?.abort();
-      lessonRequestRef.current = null;
-      setLessonGeneration({ lessonId: null, isLoading: false, error: "" });
-      const courseId = new URLSearchParams(window.location.search).get("course");
-
-      if (!courseId) {
-        setCourse(null);
-        setIsLoadingCourse(false);
-        setLessonGeneration({ lessonId: null, isLoading: false, error: "" });
-        setError("");
-        return;
-      }
-
-      const controller = new AbortController();
-      courseRequestRef.current = controller;
-      setCourse(null);
-      setIsLoadingCourse(true);
-      setError("");
-
-      getCourse(courseId, { signal: controller.signal })
-        .then((savedCourse) => setCourse(savedCourse))
-        .catch((requestError) => {
-          if (!controller.signal.aborted) {
-            setError(requestError.message);
-            setCourse(null);
-          }
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setIsLoadingCourse(false);
-        });
-    }
-
-    loadCourseFromLocation();
-    window.addEventListener("popstate", loadCourseFromLocation);
-
-    return () => {
-      healthController.abort();
-      courseRequestRef.current?.abort();
-      lessonRequestRef.current?.abort();
-      window.removeEventListener("popstate", loadCourseFromLocation);
-    };
-  }, []);
-
-  async function handleGenerateCourse(input) {
-    setIsGenerating(true);
-    setError("");
-
-    try {
-      const generatedCourse = await createCourse(input);
-      setLessonGeneration({ lessonId: null, isLoading: false, error: "" });
-      setCourse(generatedCourse);
-      updateCourseAddress(generatedCourse.id);
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
-      setIsGenerating(false);
-    }
-  }
-
-  async function handleGenerateLesson(lessonId) {
-    if (!course) return;
-
-    lessonRequestRef.current?.abort();
     const controller = new AbortController();
-    lessonRequestRef.current = controller;
-    setLessonGeneration({ lessonId, isLoading: true, error: "" });
-    try {
-      const generatedLesson = await generateLessonContent(course.id, lessonId, {
-        signal: controller.signal,
-      });
-      setCourse((currentCourse) => {
-        if (!currentCourse) return currentCourse;
 
-        return {
-          ...currentCourse,
-          updatedAt: generatedLesson.generatedAt,
-          modules: currentCourse.modules.map((courseModule) => ({
-            ...courseModule,
-            lessons: courseModule.lessons.map((lesson) => (
-              lesson.id === generatedLesson.lessonId
-                ? {
-                    ...lesson,
-                    content: generatedLesson.content,
-                    contentGeneratedAt: generatedLesson.generatedAt,
-                  }
-                : lesson
-            )),
-          })),
-        };
+    checkCourseService({ signal: controller.signal })
+      .then((ready) => setServiceStatus(ready ? "ready" : "unavailable"))
+      .catch((error) => {
+        if (error.name !== "AbortError") setServiceStatus("unavailable");
       });
-      setLessonGeneration({ lessonId: null, isLoading: false, error: "" });
-    } catch (requestError) {
-      if (!controller.signal.aborted) {
-        setLessonGeneration({ lessonId, isLoading: false, error: requestError.message });
-      }
-    } finally {
-      if (!controller.signal.aborted) lessonRequestRef.current = null;
-    }
-  }
+
+    return () => controller.abort();
+  }, []);
 
   async function handleCheckService() {
     setServiceStatus("checking");
@@ -154,97 +77,29 @@ export default function App() {
     }
   }
 
-  function handleCreateAnother() {
-    courseRequestRef.current?.abort();
-    lessonRequestRef.current?.abort();
-    lessonRequestRef.current = null;
-    updateCourseAddress(null);
-    setCourse(null);
-    setLessonGeneration({ lessonId: null, isLoading: false, error: "" });
-    setError("");
-  }
-
-  const serviceLabel = {
-    checking: "Checking course service",
-    ready: "Course service ready",
-    unavailable: "Course service unavailable",
-  }[serviceStatus];
-
-  return (
-    <div className="app-shell">
-      <header className="site-header">
-        <a className="brand" href="/" aria-label="Text to Learn home">
-          <span className="brand-mark" aria-hidden="true">T</span>
-          <span>Text to Learn</span>
-        </a>
-        <div className="header-tools">
-          <div className="service-status" role="status" aria-live="polite">
-            <span
-              className={`status-dot status-${serviceStatus}`}
-              aria-hidden="true"
-            />
-            <span>{serviceLabel}</span>
-          </div>
-          <span className="header-label">AI course studio</span>
+  return createElement(AppShell, {
+      serviceStatus,
+      children: (
+        <>
+      {serviceStatus === "unavailable" ? (
+        <div className="service-notice" role="status">
+          <p>The course service is unavailable right now. Check again when the API and database are ready.</p>
+          <button className="service-retry" type="button" onClick={handleCheckService}>Check again</button>
         </div>
-      </header>
-
-      <main className="main-content">
-        {isLoadingCourse ? (
-          <section className="loading-panel" role="status" aria-live="polite">
-            <span className="loading-spinner" aria-hidden="true" />
-            <p>Loading your saved course…</p>
-          </section>
-        ) : course ? (
-          createElement(CourseOverview, {
-            course,
-            onCreateAnother: handleCreateAnother,
-            onGenerateLesson: handleGenerateLesson,
-            generatingLessonId: lessonGeneration.isLoading ? lessonGeneration.lessonId : null,
-            isGeneratingLesson: lessonGeneration.isLoading,
-            lessonError: lessonGeneration.error ? lessonGeneration : null,
-          })
-        ) : (
-          <section className="hero-layout" aria-labelledby="page-title">
-            <div className="hero-copy">
-              <div className="eyebrow">
-                <span className="eyebrow-line" aria-hidden="true" />
-                A clearer way to learn
-              </div>
-              <h1 id="page-title">Turn a topic into a learning path.</h1>
-              <p className="intro-copy">
-                Tell us what you want to understand. Get a structured course
-                outline with modules, lesson goals, key topics, and resources.
-              </p>
-
-              <ul className="feature-list" aria-label="Course features">
-                <li><span aria-hidden="true">01</span> A guided 3-module syllabus</li>
-                <li><span aria-hidden="true">02</span> Clear goals for every lesson</li>
-                <li><span aria-hidden="true">03</span> Saved courses you can revisit</li>
-              </ul>
-            </div>
-
-            {createElement(CourseForm, {
-              error,
-              isGenerating,
-              onSubmit: handleGenerateCourse,
-            })}
-          </section>
-        )}
-
-        {serviceStatus === "unavailable" && !isLoadingCourse ? (
-          <div className="service-notice" role="status">
-            <p>The course service is unavailable right now. Check again when the API and database are ready.</p>
-            <button className="service-retry" type="button" onClick={handleCheckService}>Check again</button>
-          </div>
-        ) : null}
-      </main>
-
-      <footer className="page-footer">
-        <span>Built for focused, self-paced learning.</span>
-        <span>Text to Learn · 0.1.0</span>
-      </footer>
-    </div>
-  );
+      ) : null}
+      {createElement(
+        Routes,
+        null,
+        createElement(Route, { path: "/", element: createElement(HomeRoute) }),
+        createElement(Route, { path: "/courses", element: createElement(CourseLibraryPlaceholder) }),
+        createElement(Route, { path: "/courses/:courseId", element: createElement(CourseRoute) }),
+        createElement(Route, { path: "*", element: createElement(NotFoundPage) }),
+      )}
+        </>
+      ),
+    });
 }
 
+export default function App() {
+  return createElement(RoutedApplication);
+}
