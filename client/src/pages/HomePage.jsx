@@ -2,6 +2,7 @@ import { createElement, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CourseForm from "../components/CourseForm.jsx";
 import { createCourse } from "../api/courses.js";
+import { rememberCourse } from "../data/recent-courses.js";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export default function HomePage() {
 
     try {
       const course = await createCourse(input);
+      rememberCourse(course);
       navigate(`/courses/${encodeURIComponent(course.id)}`);
     } catch (requestError) {
       setError(requestError.message);

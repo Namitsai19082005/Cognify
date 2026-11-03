@@ -1,10 +1,12 @@
 import { createElement, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import CourseOverview from "../components/CourseOverview.jsx";
+import LessonPage from "./LessonPage.jsx";
 import { generateLessonContent, getCourse } from "../api/courses.js";
+import { rememberCourse } from "../data/recent-courses.js";
 
-export default function CourseRoute() {
-  const { courseId } = useParams();
+export default function CourseRoute({ view = "overview" }) {
+  const { courseId, moduleIndex, lessonIndex } = useParams();
   const navigate = useNavigate();
   const [course, setCourse] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +28,10 @@ export default function CourseRoute() {
     setLessonGeneration({ lessonId: null, isLoading: false, error: "" });
 
     getCourse(courseId, { signal: controller.signal })
-      .then((savedCourse) => setCourse(savedCourse))
+      .then((savedCourse) => {
+        rememberCourse(savedCourse);
+        setCourse(savedCourse);
+      })
       .catch((requestError) => {
         if (!controller.signal.aborted) setError(requestError.message);
       })
@@ -105,10 +110,48 @@ export default function CourseRoute() {
     );
   }
 
+  if (view === "lesson") {
+    const selectedModuleIndex = Number(moduleIndex);
+    const selectedLessonIndex = Number(lessonIndex);
+    const selectedModule = course.modules[selectedModuleIndex];
+    const selectedLesson = selectedModule?.lessons[selectedLessonIndex];
+
+    if (
+      !Number.isSafeInteger(selectedModuleIndex)
+      || !Number.isSafeInteger(selectedLessonIndex)
+      || !selectedLesson
+    ) {
+      return (
+        <section className="route-message" aria-labelledby="lesson-error-title">
+          <div className="page-eyebrow">LESSON NOT FOUND</div>
+          <h1 id="lesson-error-title">This lesson isn’t in the course.</h1>
+          {createElement(Link, {
+            className: "primary-button route-action",
+            to: `/courses/${encodeURIComponent(course.id)}`,
+            children: "Return to course overview",
+          })}
+        </section>
+      );
+    }
+
+    return createElement(LessonPage, {
+      course,
+      moduleIndex: selectedModuleIndex,
+      lessonIndex: selectedLessonIndex,
+      lesson: selectedLesson,
+      onGenerateLesson: handleGenerateLesson,
+      isGenerating: lessonGeneration.isLoading && lessonGeneration.lessonId === selectedLesson.id,
+      error: lessonGeneration.lessonId === selectedLesson.id ? lessonGeneration.error : "",
+    });
+  }
+
   return createElement(CourseOverview, {
       course,
       onCreateAnother: () => navigate("/"),
       onGenerateLesson: handleGenerateLesson,
+      onOpenLesson: (currentModuleIndex, currentLessonIndex) => navigate(
+        `/courses/${encodeURIComponent(course.id)}/module/${currentModuleIndex}/lesson/${currentLessonIndex}`,
+      ),
       generatingLessonId: lessonGeneration.isLoading ? lessonGeneration.lessonId : null,
       isGeneratingLesson: lessonGeneration.isLoading,
       lessonError: lessonGeneration.error ? lessonGeneration : null,

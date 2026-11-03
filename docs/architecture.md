@@ -13,6 +13,8 @@ flowchart LR
 
 The browser has no Gemini or MongoDB credentials. In local development, Vite proxies `/api` to `localhost:5000`. In a deployment, `VITE_API_URL` points the client to the Render API origin.
 
+The React client uses React Router for course creation, the course library, course overviews, and focused lesson pages. The library currently keeps a small browser-local index of course summaries; the course and lesson records remain in MongoDB. Authenticated cross-device course libraries are planned with the Auth0 ownership work.
+
 ## Request path
 
 The API applies Helmet headers, request IDs and structured request logs, and exact-origin CORS before its routes. JSON bodies are capped at 16 KB. Both generation endpoints share a per-IP rate limit. The server validates course input and model output with shared Zod contracts, then persists only valid output. Errors include a request ID and a safe message; logs omit prompts, request bodies, keys, and raw provider responses.

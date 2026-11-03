@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { Link } from "react-router-dom";
 import LessonContentRenderer from "./LessonContentRenderer.jsx";
 
 function CourseLevel({ level }) {
@@ -7,7 +8,10 @@ function CourseLevel({ level }) {
 
 function LessonCard({
   lesson,
+  courseId,
+  moduleIndex,
   lessonNumber,
+  lessonIndex,
   onGenerateLesson,
   isGenerating,
   isLessonGenerationBusy,
@@ -19,7 +23,14 @@ function LessonCard({
         {String(lessonNumber).padStart(2, "0")}
       </div>
       <div className="lesson-content">
-        <h4>{lesson.title}</h4>
+        <div className="lesson-title-row">
+          <h4>{lesson.title}</h4>
+          {createElement(Link, {
+            className: "lesson-open-link",
+            to: `/courses/${encodeURIComponent(courseId)}/module/${moduleIndex}/lesson/${lessonIndex}`,
+            children: ["Open lesson ", <span key="arrow" aria-hidden="true">↗</span>],
+          })}
+        </div>
         <div className="lesson-columns">
           <section aria-label="Lesson objectives">
             <h5>YOU’LL LEARN</h5>
@@ -157,7 +168,10 @@ export default function CourseOverview({
                 {module.lessons.map((lesson, lessonIndex) => createElement(LessonCard, {
                   key: `${lesson.title}-${lessonIndex}`,
                   lesson,
+                  courseId: course.id,
+                  moduleIndex,
                   lessonNumber: lessonIndex + 1,
+                  lessonIndex,
                   onGenerateLesson,
                   isGenerating: generatingLessonId === lesson.id,
                   isLessonGenerationBusy: isGeneratingLesson,

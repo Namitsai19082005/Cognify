@@ -2,6 +2,7 @@ import { createElement, useEffect, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AppShell from "./components/AppShell.jsx";
 import CourseRoute from "./pages/CourseRoute.jsx";
+import CourseLibraryPage from "./pages/CourseLibraryPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import { checkCourseService } from "./api/courses.js";
 
@@ -17,24 +18,6 @@ function HomeRoute() {
   }
 
   return createElement(HomePage);
-}
-
-function CourseLibraryPlaceholder() {
-  return (
-    <section className="library-page" aria-labelledby="library-title">
-      <div className="page-eyebrow">YOUR LEARNING SPACE</div>
-      <h1 id="library-title">Course library</h1>
-      <p className="library-intro">
-        Your saved courses will be collected here. Create a course to get started.
-      </p>
-      {createElement(
-        Link,
-        { className: "primary-button library-create-link", to: "/" },
-        "Create a course ",
-        <span aria-hidden="true">→</span>,
-      )}
-    </section>
-  );
 }
 
 function NotFoundPage() {
@@ -91,8 +74,12 @@ function RoutedApplication() {
         Routes,
         null,
         createElement(Route, { path: "/", element: createElement(HomeRoute) }),
-        createElement(Route, { path: "/courses", element: createElement(CourseLibraryPlaceholder) }),
+        createElement(Route, { path: "/courses", element: createElement(CourseLibraryPage) }),
         createElement(Route, { path: "/courses/:courseId", element: createElement(CourseRoute) }),
+        createElement(Route, {
+          path: "/courses/:courseId/module/:moduleIndex/lesson/:lessonIndex",
+          element: createElement(CourseRoute, { view: "lesson" }),
+        }),
         createElement(Route, { path: "*", element: createElement(NotFoundPage) }),
       )}
         </>

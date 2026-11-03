@@ -22,6 +22,14 @@ Use this list before recording the demo or sharing the repository.
 - [ ] The generation limiter returns `429` after the configured per-IP quota. Automated coverage checks this without calling Gemini.
 - [ ] Logs contain request IDs, paths, statuses, and durations, but no prompts, request bodies, keys, or provider response content.
 
+## Navigation and browser course library
+
+- [ ] The home page, course library, course overview, and lesson pages open at their direct routes.
+- [ ] A course created in this browser appears in the course library after navigation and refresh.
+- [ ] Opening a saved course loads its MongoDB copy; removing its library entry removes only the browser shortcut.
+- [ ] Existing `/?course=<id>` links redirect to the course overview route.
+- [ ] Previous/next lesson links stay within the selected course and stop at its boundaries.
+
 ## Deployed app
 
 - [ ] Render reports the API as healthy at `/api/health/live`.

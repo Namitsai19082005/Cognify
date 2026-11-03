@@ -18,7 +18,7 @@ Enter **Zero Trust network security** at **Beginner** level. Show the generated 
 
 ### 2:00–3:15 — Generate a lesson
 
-Choose a lesson and select **Generate detailed lesson**. Show the headings, explanation, video search suggestion, code example if present, and quiz. Answer one question to show the feedback. Refresh the page and explain that the course ID retrieves the saved lesson; a repeat generate request uses the cached content.
+Open the **Course library** to show the course saved on this browser, then open it and choose **Open lesson**. Select **Generate detailed lesson**. Show the headings, explanation, video search suggestion, code example if present, and quiz. Answer one question to show the feedback. Refresh the page and explain that the course ID retrieves the saved lesson; a repeat generate request uses the cached content. Use the previous/next lesson controls to show route-based navigation.
 
 ### 3:15–4:15 — Engineering safeguards
 

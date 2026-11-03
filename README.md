@@ -27,9 +27,11 @@ The client uses Vite's `/api` development proxy locally. The deployed client can
 1. Enter a topic and learner level.
 2. The API validates the request, asks Gemini for a structured outline, validates the result, and stores the course.
 3. Open any lesson to generate structured lesson content and four interactive quiz questions.
-4. Reload or share the course URL to retrieve the saved outline and generated lessons.
+4. Open the **Course library** to revisit courses saved in this browser, or reload/share a course URL to retrieve its saved outline and generated lessons.
 
 Each course contains three modules with three lessons each. Lesson content is generated only when requested and cached in MongoDB for later visits.
+
+The client uses routes for course overviews and individual lessons. The course library stores course shortcuts in this browser; account-based course ownership and cross-device sync are planned follow-up work.
 
 ## API
 
