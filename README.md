@@ -9,6 +9,7 @@ Prerequisites: Node.js **24.22.1** and npm 10 or later.
 ```powershell
 npm ci
 Copy-Item .env.example .env
+Copy-Item client\.env.example client\.env.local
 npm run dev:server
 ```
 
@@ -18,7 +19,7 @@ Start the client in a second terminal:
 npm run dev:client
 ```
 
-Open the Vite URL printed in the client terminal. For a live app, set `GEMINI_API_KEY` and `MONGODB_URI` in the root `.env`. The root `.env` file is ignored by Git. Keep both values server-side and out of prompts, screenshots, and logs.
+Open the Vite URL printed in the client terminal. Set up an Auth0 Single Page Application and an API with identifier `https://text-to-learn-api`. In Auth0, allow `http://localhost:5173` as a callback, logout, and web origin. Put the Auth0 domain, SPA client ID, and API audience in `client/.env.local`; put `AUTH0_ISSUER_BASE_URL`, `AUTH0_AUDIENCE`, `GEMINI_API_KEY`, and `MONGODB_URI` in the root `.env`. The example files contain placeholders, and both local env files are ignored by Git. Keep `GEMINI_API_KEY` and `MONGODB_URI` server-side and out of prompts, screenshots, and logs.
 
 The client uses Vite's `/api` development proxy locally. The deployed client can use a separate API origin through `VITE_API_URL`; see [deployment setup](docs/deployment.md).
 
@@ -31,7 +32,7 @@ The client uses Vite's `/api` development proxy locally. The deployed client can
 
 Each course contains three modules with three lessons each. Lesson content is generated only when requested and cached in MongoDB for later visits.
 
-The client uses routes for course overviews and individual lessons. The course library stores course shortcuts in this browser; account-based course ownership and cross-device sync are planned follow-up work.
+The client uses Auth0 sign-in and routes for course overviews and individual lessons. Course API calls send an Auth0 access token, and the browser stores course shortcuts in a separate local list for each signed-in account. Server-side course ownership and cross-device sync are planned follow-up work.
 
 ## API
 
@@ -39,9 +40,9 @@ The client uses routes for course overviews and individual lessons. The course l
 | --- | --- | --- |
 | `GET` | `/api/health/live` | Process liveness check |
 | `GET` | `/api/health/ready` | Database readiness check |
-| `POST` | `/api/courses` | Generate and save a course outline |
-| `GET` | `/api/courses/:courseId` | Load a saved course |
-| `POST` | `/api/courses/:courseId/lessons/:lessonId/content` | Generate or reuse lesson content |
+| `POST` | `/api/courses` | Generate and save a course outline (Auth0 bearer token required) |
+| `GET` | `/api/courses/:courseId` | Load a saved course (Auth0 bearer token required) |
+| `POST` | `/api/courses/:courseId/lessons/:lessonId/content` | Generate or reuse lesson content (Auth0 bearer token required) |
 
 Create a course with `{"topic":"Zero Trust network security","level":"beginner"}`. `level` is optional and defaults to `beginner`; accepted values are `beginner`, `intermediate`, and `advanced`.
 
@@ -53,7 +54,7 @@ Create a course with `{"topic":"Zero Trust network security","level":"beginner"}
 - `TRUST_PROXY_HOPS` defaults to `0`. The Render Blueprint sets it to `1` so rate limiting can use the client IP forwarded through Render's proxy.
 - JSON request bodies are limited to 16 KB. Request IDs are returned in `X-Request-Id` and included in JSON request/error logs. Logs omit prompts, request bodies, secrets, and raw provider responses.
 - The rate limiter uses a process-local store. It resets when the server restarts and is not shared across multiple instances; use a shared store before scaling horizontally.
-- CORS is a browser access policy, not API authentication. This demo has no accounts or private course ownership; anyone who has a course ID can read that course.
+- Auth0 validates signed access tokens on course API routes. Course ownership checks are not implemented yet, so any signed-in user who knows a course ID can read it; do not treat course data as private until ownership checks are added.
 - Missing configuration returns a safe service error. Provider output is validated before persistence, and provider details are not sent to the browser.
 
 ## Checks and CI

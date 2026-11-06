@@ -5,7 +5,8 @@
 ```mermaid
 flowchart LR
   Learner --> Client[React + Vite on Vercel]
-  Client -->|VITE_API_URL in production; Vite proxy locally| API[Express API on Render]
+  Client -->|Auth0 access token; VITE_API_URL in production| API[Express API on Render]
+  Client --> Auth0[Auth0]
   API -->|Zod validation and safe errors| Shared[Shared contracts]
   API -->|Structured prompts| Gemini[Gemini API]
   API -->|Mongoose persistence| Mongo[(MongoDB Atlas)]
@@ -13,13 +14,13 @@ flowchart LR
 
 The browser has no Gemini or MongoDB credentials. In local development, Vite proxies `/api` to `localhost:5000`. In a deployment, `VITE_API_URL` points the client to the Render API origin.
 
-The React client uses React Router for course creation, the course library, course overviews, and focused lesson pages. The library currently keeps a small browser-local index of course summaries; the course and lesson records remain in MongoDB. Authenticated cross-device course libraries are planned with the Auth0 ownership work.
+The React client uses Auth0 for sign-in and requests an access token for course API calls. The library keeps a small browser-local index of course summaries under the signed-in user's Auth0 subject; course and lesson records remain in MongoDB. Server-side ownership checks and cross-device course libraries are planned follow-up work.
 
 ## Request path
 
-The API applies Helmet headers, request IDs and structured request logs, and exact-origin CORS before its routes. JSON bodies are capped at 16 KB. Both generation endpoints share a per-IP rate limit. The server validates course input and model output with shared Zod contracts, then persists only valid output. Errors include a request ID and a safe message; logs omit prompts, request bodies, keys, and raw provider responses.
+The API applies Helmet headers, request IDs and structured request logs, exact-origin CORS, and JSON body limits before its routes. Health routes remain public. Auth0 middleware validates issuer, audience, expiry, and RS256 signatures on `/api/courses` routes and attaches a sanitized subject to the request. Both generation endpoints share a per-IP rate limit. The server validates course input and model output with shared Zod contracts, then persists only valid output. Errors include a request ID and a safe message; logs omit prompts, request bodies, keys, and raw provider responses.
 
-The rate limiter uses process memory. That is suitable for the current single-instance demo but resets on restart and does not coordinate multiple API instances. Use a shared store before horizontal scaling. CORS controls which browser origins can read API responses; it does not provide authentication. Courses are public to anyone with a course ID because this demo has no accounts or ownership model.
+The rate limiter uses process memory. That is suitable for the current single-instance demo but resets on restart and does not coordinate multiple API instances. Use a shared store before horizontal scaling. CORS controls which browser origins can read API responses; Auth0 provides caller authentication. Course ownership authorization is not implemented yet, so any authenticated user who knows a course ID can read it.
 
 ## Course-generation flow
 

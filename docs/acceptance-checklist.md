@@ -14,6 +14,9 @@ Use this list before recording the demo or sharing the repository.
 
 - [ ] `/api/health/live` reports process liveness.
 - [ ] `/api/health/ready` reports database readiness and does not include credentials.
+- [ ] Health routes remain public, while course routes reject missing, invalid, expired, or wrong-audience Auth0 access tokens with `401`.
+- [ ] The browser sends an Auth0 access token with each course API request and stores course shortcuts under the signed-in user's subject.
+- [ ] Auth0 issuer, audience, and signing algorithm are configured explicitly; no client secret is included in the Vite application.
 - [ ] A valid course request creates a 3-module, 9-lesson outline; invalid input returns a safe `400` response.
 - [ ] Course and lesson IDs are validated before database reads.
 - [ ] Generated lesson content is persisted, reloads with the course, and is reused on repeat generation requests.
@@ -39,6 +42,7 @@ Use this list before recording the demo or sharing the repository.
 - [ ] Open one lesson, generate detailed content, answer a quiz question, then refresh the course URL.
 - [ ] Confirm the generated lesson remains available after refresh and a second request uses the cached content.
 - [ ] Confirm Gemini and MongoDB credentials are configured only in the server's environment.
+- [ ] Sign in through Auth0 and verify a valid token can create, load, and generate lesson content.
 
 ## Portfolio handoff
 

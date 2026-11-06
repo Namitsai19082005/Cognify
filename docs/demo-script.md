@@ -10,7 +10,7 @@ Use the live site only after following [deployment setup](deployment.md) and com
 
 ### 0:30–1:00 — Architecture
 
-Show the architecture diagram in `docs/architecture.md`. Point out the React/Vite client, Express API, shared Zod contracts, Gemini adapter, and MongoDB persistence. Explain that the Gemini and database credentials stay on the server.
+Show the architecture diagram in `docs/architecture.md`. Point out the React/Vite client, Auth0 sign-in and access tokens, Express API, shared Zod contracts, Gemini adapter, and MongoDB persistence. Explain that the Gemini and database credentials stay on the server.
 
 ### 1:00–2:00 — Create a course
 
@@ -18,7 +18,7 @@ Enter **Zero Trust network security** at **Beginner** level. Show the generated 
 
 ### 2:00–3:15 — Generate a lesson
 
-Open the **Course library** to show the course saved on this browser, then open it and choose **Open lesson**. Select **Generate detailed lesson**. Show the headings, explanation, video search suggestion, code example if present, and quiz. Answer one question to show the feedback. Refresh the page and explain that the course ID retrieves the saved lesson; a repeat generate request uses the cached content. Use the previous/next lesson controls to show route-based navigation.
+Open the **Course library** to show the course saved under the signed-in account on this browser, then open it and choose **Open lesson**. Select **Generate detailed lesson**. Show the headings, explanation, video search suggestion, code example if present, and quiz. Answer one question to show the feedback. Refresh the page and explain that the course ID retrieves the saved lesson; a repeat generate request uses the cached content. Use the previous/next lesson controls to show route-based navigation.
 
 ### 3:15–4:15 — Engineering safeguards
 
@@ -26,7 +26,7 @@ Show the GitHub Actions run and explain that CI runs lint, API tests, a MongoDB 
 
 ### 4:15–5:00 — Tradeoffs and close
 
-State the current limits plainly: courses are public to anyone with their ID, and the in-memory rate limiter is for a single API instance. Explain that authentication and a shared rate-limit store are follow-up work if private accounts or horizontal scaling are needed. Close with the live acceptance results and repository link.
+State the current limits plainly: course ownership checks are not implemented, so any signed-in user who knows a course ID can read it; the in-memory rate limiter is for a single API instance. Explain that ownership authorization and a shared rate-limit store are follow-up work for private accounts or horizontal scaling. Close with the live acceptance results and repository link.
 
 ## Recording notes
 
