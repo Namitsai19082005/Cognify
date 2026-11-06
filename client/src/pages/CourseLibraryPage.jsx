@@ -1,4 +1,5 @@
 import { createElement, useEffect, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router-dom";
 import { forgetCourse, readRecentCourses } from "../data/recent-courses.js";
 
@@ -9,19 +10,22 @@ function formatDate(value) {
 }
 
 export default function CourseLibraryPage() {
-  const [courses, setCourses] = useState(() => readRecentCourses());
+  const { user } = useAuth0();
+  const userId = user?.sub;
+  const [courses, setCourses] = useState(() => readRecentCourses(userId));
 
   useEffect(() => {
+    setCourses(readRecentCourses(userId));
     function refreshCourses() {
-      setCourses(readRecentCourses());
+      setCourses(readRecentCourses(userId));
     }
 
     window.addEventListener("storage", refreshCourses);
     return () => window.removeEventListener("storage", refreshCourses);
-  }, []);
+  }, [userId]);
 
   function handleRemove(courseId) {
-    setCourses(forgetCourse(courseId));
+    setCourses(forgetCourse(courseId, userId));
   }
 
   return (
@@ -31,7 +35,7 @@ export default function CourseLibraryPage() {
           <div className="page-eyebrow">YOUR LEARNING SPACE</div>
           <h1 id="library-title">Course library</h1>
           <p className="library-intro">
-            Courses saved in this browser. Sign-in and cross-device sync are planned next.
+            Courses are saved in this browser. Cross-device sync is planned next.
           </p>
         </div>
         {createElement(Link, {

@@ -23,6 +23,7 @@ const SAFE_ERROR_CODES = new Set([
   "cors_origin_denied",
   "entity.parse.failed",
   "entity.too.large",
+  "unauthorized",
   "route_not_found",
   "course_save_failed",
   "course_load_failed",
@@ -134,7 +135,13 @@ function handleApiError(error, request, response, next) {
   let message = error instanceof ApiError ? error.message : "Internal server error.";
   let code = SAFE_ERROR_CODES.has(error?.code) ? error.code : "internal_error";
 
-  if (error?.type === "entity.parse.failed") {
+  if (
+    status === 401
+    && ["UnauthorizedError", "InvalidTokenError"].includes(error?.name)
+  ) {
+    message = "Authentication is required.";
+    code = "unauthorized";
+  } else if (error?.type === "entity.parse.failed") {
     status = 400;
     message = "Request body must be valid JSON.";
     code = error.type;
@@ -167,14 +174,36 @@ function handleApiError(error, request, response, next) {
   });
 }
 
+function attachAuthenticatedUser(request, _response, next) {
+  const claims = request.auth?.payload;
+  if (!claims?.sub) {
+    return next(new ApiError(
+      401,
+      "Authentication is required.",
+      "unauthorized",
+    ));
+  }
+
+  request.user = {
+    sub: claims.sub,
+    ...(typeof claims.email === "string" ? { email: claims.email } : {}),
+    ...(typeof claims.name === "string" ? { name: claims.name } : {}),
+  };
+  return next();
+}
+
 export function createApp({
   courseModel = Course,
   generateOutline = generateCourseOutline,
   generateLesson = generateLessonContent,
   databaseReady = isDatabaseConnected,
   securityOptions,
+  authenticate,
 } = {}) {
   const app = express();
+  if (process.env.NODE_ENV === "production" && !authenticate) {
+    throw new Error("Authenticated API middleware is required in production.");
+  }
   const generationLimiter = applySecurityMiddleware(app, securityOptions);
   app.use(express.json({ limit: "16kb" }));
 
@@ -193,6 +222,12 @@ export function createApp({
       database: ready ? "connected" : "disconnected",
     });
   });
+
+  if (authenticate) {
+    app.use("/api/courses", authenticate, attachAuthenticatedUser);
+  } else {
+    app.use("/api/courses", (_request, _response, next) => next());
+  }
 
   app.post("/api/courses", generationLimiter, async (request, response, next) => {
     const input = CourseCreateRequestSchema.safeParse(request.body);

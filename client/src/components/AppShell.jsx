@@ -7,7 +7,7 @@ const serviceLabels = {
   unavailable: "Course service unavailable",
 };
 
-export default function AppShell({ serviceStatus, children }) {
+export default function AppShell({ serviceStatus, accountName, onSignIn, onSignOut, children }) {
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -18,6 +18,16 @@ export default function AppShell({ serviceStatus, children }) {
           <span>Text to Learn</span>,
         )}
         <div className="header-tools">
+          <div className="account-control">
+            {accountName ? <span className="account-name">{accountName}</span> : null}
+            <button
+              className="auth-action"
+              type="button"
+              onClick={accountName ? onSignOut : onSignIn}
+            >
+              {accountName ? "Sign out" : "Sign in"}
+            </button>
+          </div>
           <div className="service-status" role="status" aria-live="polite">
             <span className={`status-dot status-${serviceStatus}`} aria-hidden="true" />
             <span>{serviceLabels[serviceStatus]}</span>

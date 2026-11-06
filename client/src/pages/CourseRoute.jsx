@@ -1,4 +1,5 @@
 import { createElement, useEffect, useRef, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import CourseOverview from "../components/CourseOverview.jsx";
 import LessonPage from "./LessonPage.jsx";
@@ -8,6 +9,7 @@ import { rememberCourse } from "../data/recent-courses.js";
 export default function CourseRoute({ view = "overview" }) {
   const { courseId, moduleIndex, lessonIndex } = useParams();
   const navigate = useNavigate();
+  const { getAccessTokenSilently, user } = useAuth0();
   const [course, setCourse] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -27,9 +29,9 @@ export default function CourseRoute({ view = "overview" }) {
     setIsLoading(true);
     setLessonGeneration({ lessonId: null, isLoading: false, error: "" });
 
-    getCourse(courseId, { signal: controller.signal })
+    getCourse(courseId, { signal: controller.signal, getAccessTokenSilently })
       .then((savedCourse) => {
-        rememberCourse(savedCourse);
+        rememberCourse(savedCourse, user?.sub);
         setCourse(savedCourse);
       })
       .catch((requestError) => {
@@ -43,7 +45,7 @@ export default function CourseRoute({ view = "overview" }) {
       controller.abort();
       lessonRequestRef.current?.abort();
     };
-  }, [courseId]);
+  }, [courseId, getAccessTokenSilently, user?.sub]);
 
   async function handleGenerateLesson(lessonId) {
     if (!course) return;
@@ -56,6 +58,7 @@ export default function CourseRoute({ view = "overview" }) {
     try {
       const generatedLesson = await generateLessonContent(course.id, lessonId, {
         signal: controller.signal,
+        getAccessTokenSilently,
       });
       setCourse((currentCourse) => {
         if (!currentCourse) return currentCourse;

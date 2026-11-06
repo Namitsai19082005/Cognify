@@ -10,8 +10,14 @@ function apiUrl(path) {
   return `${API_BASE_URL}${path}`;
 }
 
-async function requestJson(path, options = {}) {
-  const response = await fetch(apiUrl(path), options);
+async function requestJson(path, options = {}, getAccessTokenSilently) {
+  const headers = new Headers(options.headers);
+  if (getAccessTokenSilently) {
+    const accessToken = await getAccessTokenSilently();
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+
+  const response = await fetch(apiUrl(path), { ...options, headers });
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -39,31 +45,41 @@ export async function checkCourseService({ signal } = {}) {
   return payload.status === "ok";
 }
 
-export async function createCourse(input, { signal } = {}) {
+export async function createCourse(input, { signal, getAccessTokenSilently } = {}) {
   const request = CourseCreateRequestSchema.parse(input);
-  const payload = await requestJson("/api/courses", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-    signal,
-  });
-
-  return parseCourse(payload);
-}
-
-export async function getCourse(courseId, { signal } = {}) {
   const payload = await requestJson(
-    `/api/courses/${encodeURIComponent(courseId)}`,
-    { signal },
+    "/api/courses",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+      signal,
+    },
+    getAccessTokenSilently,
   );
 
   return parseCourse(payload);
 }
 
-export async function generateLessonContent(courseId, lessonId, { signal } = {}) {
+export async function getCourse(courseId, { signal, getAccessTokenSilently } = {}) {
+  const payload = await requestJson(
+    `/api/courses/${encodeURIComponent(courseId)}`,
+    { signal },
+    getAccessTokenSilently,
+  );
+
+  return parseCourse(payload);
+}
+
+export async function generateLessonContent(
+  courseId,
+  lessonId,
+  { signal, getAccessTokenSilently } = {},
+) {
   const payload = await requestJson(
     `/api/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(lessonId)}/content`,
     { method: "POST", signal },
+    getAccessTokenSilently,
   );
   const result = LessonContentGenerationResponseSchema.safeParse(payload.lesson);
 

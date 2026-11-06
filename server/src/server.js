@@ -5,6 +5,7 @@ import {
   connectToDatabase,
   disconnectFromDatabase,
 } from "./database.js";
+import { createAuthMiddleware } from "./middleware/auth.js";
 
 dotenv.config({ path: fileURLToPath(new URL("../../.env", import.meta.url)) });
 
@@ -16,6 +17,8 @@ function log(level, event, details = {}) {
 }
 
 async function startServer() {
+  const authenticate = createAuthMiddleware();
+
   try {
     const connected = await connectToDatabase();
     if (connected) log("info", "database.connected");
@@ -24,7 +27,7 @@ async function startServer() {
     log("error", "database.connection_failed", { errorName: error.name });
   }
 
-  const server = createApp().listen(port, "0.0.0.0", () => {
+  const server = createApp({ authenticate }).listen(port, "0.0.0.0", () => {
     log("info", "server.listening", { port });
   });
 
@@ -40,5 +43,8 @@ async function startServer() {
   process.once("SIGTERM", stop);
 }
 
-startServer();
+startServer().catch((error) => {
+  log("error", "server.startup_failed", { errorName: error.name });
+  process.exitCode = 1;
+});
 

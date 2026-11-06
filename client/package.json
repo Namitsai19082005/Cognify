@@ -9,6 +9,7 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@auth0/auth0-react": "^2.30.0",
     "@text-to-learn/shared": "0.1.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

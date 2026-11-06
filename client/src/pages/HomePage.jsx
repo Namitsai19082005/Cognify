@@ -1,4 +1,5 @@
 import { createElement, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import { useNavigate } from "react-router-dom";
 import CourseForm from "../components/CourseForm.jsx";
 import { createCourse } from "../api/courses.js";
@@ -6,6 +7,7 @@ import { rememberCourse } from "../data/recent-courses.js";
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { getAccessTokenSilently, user } = useAuth0();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
 
@@ -14,8 +16,8 @@ export default function HomePage() {
     setError("");
 
     try {
-      const course = await createCourse(input);
-      rememberCourse(course);
+      const course = await createCourse(input, { getAccessTokenSilently });
+      rememberCourse(course, user?.sub);
       navigate(`/courses/${encodeURIComponent(course.id)}`);
     } catch (requestError) {
       setError(requestError.message);
